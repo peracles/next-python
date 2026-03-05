@@ -399,3 +399,36 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+cat > .gitignore << EOF
+# --- Entornos ---
+.env
+.env.local
+.env.*.local
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Build Outputs ---
+**/dist/
+**/build/
+**/.next/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+
+# --- Testing ---
+coverage/
+.pytest_cache/
+EOF

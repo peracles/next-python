@@ -1,0 +1,123 @@
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  db:
+    image: postgres:${POSTGRES_VERSION:-18.1-alpine}
+    container_name: next-python_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      # ✅ CORREGIDO: Nombre de volumen + ruta con dos puntos
+      - next-python_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5429}:5432"
+    networks:
+      - next-python_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ===========================================
+  # Backend: FastAPI + Python
+  # ===========================================
+  backend:
+    build:
+      # Contexto es la carpeta backend (donde está el Dockerfile)
+      context: ./backend
+      # ✅ CORREGIDO: Ruta relativa al contexto (no a la raíz)
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
+    container_name: next-python_backend
+    restart: unless-stopped
+    volumes:
+      # Hot-reload: monta el código local dentro del contenedor
+      - ./backend:/app
+      # Excluir carpetas generadas para evitar conflictos
+      - /app/__pycache__
+      - /app/.venv
+    environment:
+      PYTHONPATH: /app
+      # Nombre del servicio de DB para comunicación interna en la red Docker
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@next-python_db:5432/${DB_NAME}
+      SECRET_KEY: ${JWT_SECRET_KEY}
+      ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      PYTHONUNBUFFERED: 1
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - next-python_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ===========================================
+  # Frontend: Next.js + pnpm
+  # ===========================================
+  frontend:
+    build:
+      # Contexto es la carpeta frontend (donde está el Dockerfile)
+      context: ./frontend
+      # ✅ CORREGIDO: Ruta relativa al contexto
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-20-alpine}
+    container_name: next-python_frontend
+    restart: unless-stopped
+    command: pnpm dev --host --port 3000
+    volumes:
+      # Hot-reload para Next.js
+      - ./frontend:/app
+      # Excluir dependencias para evitar conflictos host/contenedor
+      - /app/node_modules
+      - /app/.next
+      - /app/.pnpm-store
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_APP_ENV: ${ENVIRONMENT:-development}
+      NODE_ENV: ${ENVIRONMENT:-development}
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - next-python_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+# ===========================================
+# Volúmenes Persistentes
+# ===========================================
+volumes:
+  # ✅ CORREGIDO: Declaración correcta de volumen nombrado
+  next-python_postgres_data:
+
+# ===========================================
+# Redes Aisladas
+# ===========================================
+networks:
+  next-python_network:
+    driver: bridge
+    name: next-python_network
