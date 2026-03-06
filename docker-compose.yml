@@ -71,25 +71,22 @@ services:
   # ===========================================
   frontend:
     build:
-      # Contexto es la carpeta frontend (donde está el Dockerfile)
       context: ./frontend
-      # ✅ CORREGIDO: Ruta relativa al contexto
       dockerfile: Dockerfile
       args:
-        NODE_VERSION: ${NODE_VERSION:-20-alpine}
+        # ✅ Pasar solo el número, el Dockerfile agrega -slim
+        NODE_VERSION: ${NODE_VERSION:-20}
     container_name: next-python_frontend
     restart: unless-stopped
-    command: pnpm dev --host --port 3000
     volumes:
-      # Hot-reload para Next.js
-      - ./frontend:/app
-      # Excluir dependencias para evitar conflictos host/contenedor
+      # ✅ Montaje con usuario mapeado (solución para permisos)
+      - ./frontend:/app:cached
+      # ✅ Volumen anónimo para node_modules
       - /app/node_modules
-      - /app/.next
-      - /app/.pnpm-store
+      # ✅ Volumen para .next (para evitar problemas de permisos)
+      - next-python_next_data:/app/.next
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_APP_ENV: ${ENVIRONMENT:-development}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:8000}
       NODE_ENV: ${ENVIRONMENT:-development}
       PORT: 3000
       HOSTNAME: 0.0.0.0
@@ -100,19 +97,20 @@ services:
         condition: service_healthy
     networks:
       - next-python_network
+    # Ejecutar como root para desarrollo (temporal)
+    user: "root"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
-
+      start_period: 30s
 # ===========================================
 # Volúmenes Persistentes
 # ===========================================
 volumes:
-  # ✅ CORREGIDO: Declaración correcta de volumen nombrado
   next-python_postgres_data:
+  next-python_next_data:
 
 # ===========================================
 # Redes Aisladas

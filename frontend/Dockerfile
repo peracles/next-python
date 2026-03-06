@@ -1,20 +1,38 @@
-ARG NODE_VERSION=24.13.0-alpine
-
+# frontend/Dockerfile
+ARG NODE_VERSION=25-alpine
 FROM node:${NODE_VERSION}
 
-RUN npm install -g pnpm@latest
-
+# Crear directorio de trabajo
 WORKDIR /app
 
-# ✅ Manejar caso donde pnpm-lock.yaml aún no existe
-COPY package.json ./
-RUN pnpm install --frozen-lockfile 2>$null || pnpm install
+# Instalar pnpm globalmente
+RUN npm install -g pnpm
 
+# Copiar archivos de dependencias primero
+COPY package.json pnpm-lock.yaml* ./
+
+# Instalar dependencias (como root)
+RUN pnpm install --frozen-lockfile || pnpm install
+
+# Copiar el resto del código
 COPY . .
+
+# Crear directorio .next con permisos adecuados y dar permisos
+RUN mkdir -p /app/.next && \
+    chmod 777 /app/.next && \
+    chown -R node:node /app
+
+# Cambiar al usuario node (no-root)
+USER node
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+# Instalar curl para healthcheck (como root, luego volver a node)
+USER root
+RUN apk add --no-cache curl
+USER node
 
-CMD ["pnpm", "dev", "--host", "--port", "3000"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
+CMD ["pnpm", "dev", "--hostname", "0.0.0.0", "--port", "3000"]

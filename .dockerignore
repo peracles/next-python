@@ -60,3 +60,32 @@ docker/
 # Tests
 coverage/
 .pytest_cache/
+
+# Frontend - NO copiar al contexto de build
+frontend/node_modules/
+frontend/.next/
+frontend/.pnpm-store/
+frontend/pnpm-lock.yaml
+
+# Backend
+backend/__pycache__/
+backend/.venv/
+
+# Genérico
+**/node_modules/
+**/.next/
+**/__pycache__/
+
+# frontend/.dockerignore
+node_modules
+.next
+.env
+.git
+.gitignore
+README.md
+.pnpm-store
+.pnpm-debug.log
+.DS_Store
+*.log
+dist
+build
