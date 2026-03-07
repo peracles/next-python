@@ -10,3 +10,7 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+@app.get("/test")
+async def test_hot_reload():
+    return {"hot_reload": "works"}

@@ -11,7 +11,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
-      # ✅ CORREGIDO: Nombre de volumen + ruta con dos puntos
       - next-python_postgres_data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT:-5429}:5432"
@@ -29,29 +28,33 @@ services:
   # ===========================================
   backend:
     build:
-      # Contexto es la carpeta backend (donde está el Dockerfile)
       context: ./backend
-      # ✅ CORREGIDO: Ruta relativa al contexto (no a la raíz)
       dockerfile: Dockerfile
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
     container_name: next-python_backend
     restart: unless-stopped
+    # ✅ CRÍTICO: Montar TODO el backend en /app (NO solo app/)
     volumes:
-      # Hot-reload: monta el código local dentro del contenedor
-      - ./backend:/app
-      # Excluir carpetas generadas para evitar conflictos
-      - /app/__pycache__
-      - /app/.venv
+      - ./backend:/app          # ← Hot-reload: tu código local sobrescribe el de la imagen
+      - /app/__pycache__        # ← Excluir cache
+      - /app/.venv              # ← Excluir venv
     environment:
       PYTHONPATH: /app
-      # Nombre del servicio de DB para comunicación interna en la red Docker
       DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@next-python_db:5432/${DB_NAME}
       SECRET_KEY: ${JWT_SECRET_KEY}
       ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       PYTHONUNBUFFERED: 1
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ENVIRONMENT: ${ENVIRONMENT:-development}  # ← Tu variable
+    # ✅ CRÍTICO: command sobrescribe el CMD del Dockerfile
+    # Usa --reload solo si ENVIRONMENT=development
+    command: >
+      sh -c 'if [ "$$ENVIRONMENT" = "development" ]; then
+              exec /usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload;
+            else
+              exec /usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000;
+            fi'
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -64,7 +67,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 40s
 
   # ===========================================
   # Frontend: Next.js + pnpm
@@ -74,22 +77,22 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # ✅ Pasar solo el número, el Dockerfile agrega -slim
-        NODE_VERSION: ${NODE_VERSION:-20}
+        NODE_VERSION: ${NODE_VERSION:-25-alpine}
     container_name: next-python_frontend
     restart: unless-stopped
     volumes:
-      # ✅ Montaje con usuario mapeado (solución para permisos)
+      # ✅ Código fuente con :cached para rendimiento en Windows
       - ./frontend:/app:cached
-      # ✅ Volumen anónimo para node_modules
+      # ✅ Volumen anónimo para proteger node_modules del contenedor
       - /app/node_modules
-      # ✅ Volumen para .next (para evitar problemas de permisos)
+      # ✅ Volumen nombrado para .next (evita problemas de permisos)
       - next-python_next_data:/app/.next
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:8000}
       NODE_ENV: ${ENVIRONMENT:-development}
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      WATCHPACK_POLLING: "true"
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
@@ -97,14 +100,15 @@ services:
         condition: service_healthy
     networks:
       - next-python_network
-    # Ejecutar como root para desarrollo (temporal)
+    # ✅ Ejecutar como root para desarrollo (evita permisos)
     user: "root"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
+
 # ===========================================
 # Volúmenes Persistentes
 # ===========================================
