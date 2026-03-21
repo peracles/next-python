@@ -1,23 +1,51 @@
 # backend/requirements.txt
 
-# Framework web
-fastapi==0.109.0
-uvicorn==0.27.0
-bcrypt==4.1.2
+# ─────────────────────────────────────────────────────────────
+# Framework Web
+# ─────────────────────────────────────────────────────────────
+fastapi==0.109.0          # Framework principal
+uvicorn[standard]==0.27.0 # Servidor ASGI con extras para reload
 
-# Base de datos
-sqlalchemy==2.0.25
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+# ─────────────────────────────────────────────────────────────
+# Validación de Datos (Pydantic)
+# ─────────────────────────────────────────────────────────────
+pydantic==2.5.3           # Validación de datos con tipos
+pydantic-settings==2.1.0  # Leer variables de entorno con Pydantic
 
-# Validación de datos
-pydantic==2.5.3
-pydantic-settings==2.1.0
+# ─────────────────────────────────────────────────────────────
+# Base de Datos (SQLAlchemy Async)
+# ─────────────────────────────────────────────────────────────
+sqlalchemy==2.0.25        # ORM para interactuar con DB usando Python
+asyncpg==0.29.0           # Driver asíncrono para PostgreSQL
+psycopg2-binary==2.9.9    # Driver síncrono (para Alembic migrations)
 
-# Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
-httpx==0.26.0
+# ─────────────────────────────────────────────────────────────
+# Autenticación y Seguridad
+# ─────────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0  # JWT: crear y verificar tokens
+passlib[bcrypt]==1.7.4            # Hash de passwords con bcrypt
+python-multipart==0.0.6           # Parsear form-data en requests
 
+# ─────────────────────────────────────────────────────────────
 # Utilidades
-python-dotenv==1.0.0
+# ─────────────────────────────────────────────────────────────
+python-dotenv==1.0.0       # Cargar variables de entorno desde .env
+email-validator==2.1.0     # Validar emails con Pydantic
+
+# ─────────────────────────────────────────────────────────────
+# Testing
+# ─────────────────────────────────────────────────────────────
+pytest==7.4.4              # Framework de tests
+pytest-asyncio==0.23.3     # Soporte para tests async
+httpx==0.26.0              # Cliente HTTP para tests de API
+
+# ─────────────────────────────────────────────────────────────
+# Migraciones (Alembic)
+# ─────────────────────────────────────────────────────────────
+alembic==1.13.1
+
+# ─────────────────────────────────────────────────────────────
+# Linting y Type Checking
+# ─────────────────────────────────────────────────────────────
+mypy==1.8.0 
+ruff==0.1.9         # Versionado de esquema de base de datos
